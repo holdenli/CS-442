@@ -52,7 +52,7 @@
 
 (newline)
 (display "5.")
-(define L (list 1 2 3 4))
+(define L (list 1 2 3 4 5 6 0 0 0))
 (define f foo)
 (foldr
  (lambda (arg tail)
@@ -70,7 +70,48 @@
 ;1.
 ; A simple implementation of foldr may not use tail-recursion. So foldl would use less (O(1)) memory to run.
 ; However we can implement one in terms of the other by first reversing L. This means that an O(n) operation can make these two functions equivalent.
-; Therefore, strictly speaking, foldl is a better choice than tail-recursive foldr but it is an insignificant difference.
+; Therefore, there's no (significant) difference between the two.
 
 ;2.
-; This implementation is not tail-recursive so it uses O(n) memory. The function still just traverses the list once so the runtime is the same (which is O(n)).
+; This implementation is more efficient because it stops evaluating when one of the elements of the list evaluates to true.
+; So this implementation's average runtime is n/2 while the fold implementation has an average runtime of n.
+
+;***
+; 2
+;***
+(newline)
+(newline)
+
+; PART A
+(newline)
+(display "A ")
+(define kill3(lambda (L)
+               (set! L
+                     (set-cdr! L
+                               (cons (car (cdr L))
+                                     (cdr (cdr (cdr L))))
+                               )
+                     )))
+
+(define a '(1 2 3 4 5 6 7 8))
+(kill3 a)
+a
+
+; PART B
+(newline)
+(display "B ")
+(define counter 0)
+(define countme(lambda ()
+                 (set! counter (+ counter 1)) counter
+                 ))
+
+; PART C
+(newline)
+(display "C ")
+(map (let ((x 0))
+       (lambda (y) (set! x (+ x 1)) (+ y x))
+       )
+     '(0 0 0 0)
+     )
+
+;
