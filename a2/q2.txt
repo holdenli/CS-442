@@ -1,0 +1,27 @@
+CS 442 Assignment 2
+Holden Li - h55li - 20300403
+----------------------------
+
+Question 2
+----------
+
+1.
+(define Y-fact
+  `(fun s fun x
+        ,if (zero? x)
+        (incr ,zero)
+        (,* x (s (pred x)))
+        )
+  )
+(define fact `(,Y-combinator ,Y-fact))
+
+2.
+This will work simply because my evaluator uses NOR.
+And for NOR, if there is a normal form then NOR can reach it as stated by the Standardization theorem.
+So assuming the above implementation does run using AOE then it will run with my evaluator.
+
+3.
+No.
+If NOR terminates then the result is in normal form.
+If AOE termiantes then the result is in normal form.
+By the Church-Rosser Theorem, these results are the same.

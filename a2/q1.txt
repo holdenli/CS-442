@@ -1,0 +1,83 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; INPUT:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define l-true
+  '(fun x fun y x))
+(define l-false
+  '(fun x fun y y))
+(define l-if
+  '(fun b fun t fun f b t f))
+(define l-cons
+  '(fun h fun t fun s s h t))
+(define l-car
+  '(fun l l fun x fun y x))
+(define l-cdr
+  '(fun l l fun x fun y y))
+(define l-nil
+  (append '(fun s) l-true))
+(define l-null?
+  (append '(fun l l fun h fun t) l-false))
+(define l-incr
+  '(fun n (fun s s ! n)))
+(define l-decr l-cdr)
+
+(define l-Y
+  '(fun f (fun x f (x x)) (fun x f (x x))))
+(define Y-sum
+  `(fun s fun x fun y
+        ,l-if (,l-null? x) ; if
+        y ; then
+        (s ; else
+         (,l-decr x)
+         (,l-incr y)
+         )
+        )
+  )
+(define l-sum (list l-Y Y-sum))
+(define Y-fib
+  `(fun s fun x
+        ; if 0
+        ,l-if (,l-null? x)
+        ; then
+        (,l-nil)
+        ; if 1
+        (,l-if (,l-null? (,l-decr x))
+               (,l-incr ,l-nil)
+               ; else
+               (,l-sum (s (,l-decr x))
+                       (s (,l-decr (,l-decr x))))
+               )
+        )
+  )
+(define l-fib (list l-Y Y-fib))
+
+; fib 0 = 0
+(interpret `(,l-fib ,l-nil))
+; fib 1 = 1
+(interpret `(,l-fib (,l-incr ,l-nil)))
+; fib 2 = 1
+(interpret `(,l-fib
+             (,l-incr (,l-incr ,l-nil))
+             )
+           )
+; fib 3 = 2
+(interpret `(,l-fib
+             (,l-incr (,l-incr (,l-incr ,l-nil)))
+             )
+           )
+; fib 5 = 5
+(interpret `(,l-fib
+             (,l-incr (,l-incr (,l-incr (,l-incr (,l-incr ,l-nil)))))
+             )
+           )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OUTPUT:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(fun s (fun x (fun y x)))
+(fun s ((s !) (fun s (fun x (fun y x)))))
+(fun s ((s !) (fun s (fun x (fun y x)))))
+(fun s ((s !) (fun s ((s !) (fun s (fun x (fun y x)))))))
+(fun s ((s !) (fun s ((s !) (fun s ((s !) (fun s ((s !) (fun s ((s !) (fun s (fun x (fun y x)))))))))))))
