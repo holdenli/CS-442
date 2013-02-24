@@ -6,6 +6,17 @@
 
 datatype prim = Add | Neg | Mult | Div | And | Or | Not | Eq | Lt | Gt
 
+fun prim_to_str Prim(Add)   = "add"
+| prim_to_str Prim(Neg)     = "neg"
+| prim_to_str Prim(Mult)    = "mult"
+| prim_to_str Prim(Div)     = "div"
+| prim_to_str Prim(And)     = "and"
+| prim_to_str Prim(Or)      = "or"
+| prim_to_str Prim(Not)     = "not"
+| prim_to_str Prim(Eq)      = "eq"
+| prim_to_str Prim(Lt)      = "lt"
+| prim_to_str Prim(Gt)      = "gt"
+
 datatype milner = Var of string
                 | Abs of string * milner
                 | App of milner * milner
@@ -16,7 +27,7 @@ datatype milner = Var of string
                 | Bool of bool
                 | Prim of prim
 
-datatype mtype = TInt | TBool | TVar of string
+datatype mtype = TInt | TBool | TVar of string | MTVar of string
                | Arrow of mtype * mtype
 
 (* Generating Type Variables:
@@ -26,12 +37,6 @@ val counter = ref 0
 fun newtype () = 
    "Z" ^ Int.toString(!counter before counter := !counter + 1)
 
-fun newmtype (Arrow(x, y)) =
-    Arrow(newmtype x, newmtype y)
-| newmtype (TVar(t)) =
-    TVar(newtype())
-| newmtype t = t
-
 (*  pptype
     Converts a mtype in a human readable string. *)
 fun pptype (Arrow(x, y)) =
@@ -40,6 +45,8 @@ fun pptype (Arrow(x, y)) =
     " -> " ^
     pptype y ^
     ")"
+| pptype (MTVar(x)) =
+    "'M." ^ x
 | pptype (TVar(x)) =
     "'" ^ x
 | pptype TInt =
@@ -48,13 +55,23 @@ fun pptype (Arrow(x, y)) =
     "bool"
 
 (* Environment: mapping from names to types *)
-
-type mtype_pair = (mtype * mtype)
 type env = (string * mtype) list
-val initenv = nil:env
+val initenv = [
+        ("add", Arrow(TInt, Arrow(TInt, TInt))),
+        ("neg", Arrow(TInt, TInt)),
+        ("mult",Arrow(TInt, Arrow(TInt, TInt))),
+        ("div", Arrow(TInt, Arrow(TInt, TInt))),
+        ("and", Arrow(TBool, Arrow(TBool, TBool))),
+        ("or",  Arrow(TBool, Arrow(TBool, TBool))),
+        ("not", Arrow(TBool, TBool)),
+        ("eq",  Arrow(TInt, Arrow(TInt, TBool))),
+        ("lt",  Arrow(TInt, Arrow(TInt, TBool))),
+        ("gt",  Arrow(TInt, Arrow(TInt, TBool)))
+    ]
 val emptyenv = nil:env
 
-fun sub (Arrow(x, y)) (s:mtype_pair) = 
+(* subsitutions *)
+fun sub (Arrow(x, y)) s = 
     (Arrow(sub x s, sub y s))
 | sub (TVar(t)) (tau, TVar(alpha)) =
     if t = alpha then tau
@@ -70,6 +87,7 @@ fun env_sub (e:env) nil = e
     env_sub
         ((x, (sub t s))::r1) r2
     
+(* unification *)
 fun occurs_check (TVar(a1)) a2 =
     if a1 = a2 then true else false
 | occurs_check (Arrow(x, y)) a =
@@ -95,6 +113,7 @@ fun unify (Arrow(t1, t2)) (Arrow(t3, t4)) =
     if t1 = t2 then [] else raise CannotUnify
 
 ;
+(*
 print "TEST 1\n";
 
 sub TInt (TBool, TVar("a"));
@@ -115,20 +134,108 @@ unify
     handle CannotUnify => (print "CU: "; []);
 unify TInt TBool handle CannotUnify => (print "CU: "; []);
 unify TInt TBool handle CannotUnify => (print "CU: "; []);
+*)
 
 (* **************************************** *)
-print "#### W\n";
 
+exception NotImplemented
+
+fun mark (A:env) (t:mtype) =
+    let
+
+fun mtype_find_vars (TVar(x)) = [x]
+| mtype_find_vars (Arrow(x, y)) = (mtype_find_vars x) @ (mtype_find_vars y)
+| mtype_find_vars _ = []
+
+fun env_find_vars (nil:env) = nil
+| env_find_vars ((_, x)::rest) = (mtype_find_vars x) @ (env_find_vars rest)
+
+fun rm_from_list nil _ = nil
+| rm_from_list (i::rest) to_rm =
+    if i = to_rm then
+        rm_from_list rest to_rm
+    else
+        i::(rm_from_list rest to_rm)
+
+fun rm_l_from_l nil _ = nil
+| rm_l_from_l li nil = li
+| rm_l_from_l li (r::rest) = rm_l_from_l (rm_from_list li r) rest
+
+        val env_vars = env_find_vars A
+        val t_vars = mtype_find_vars t
+        val m_vars = rm_l_from_l t_vars env_vars
+
+        fun mark_var (TVar(x)) s =
+            if x = s then MTVar(x) else TVar(x)
+        | mark_var (Arrow(x, y)) s =
+            Arrow(mark_var x s, mark_var y s) 
+        | mark_var t _ = t
+
+        fun mark_vars (t:mtype) nil = t
+        | mark_vars t (s::rest) = mark_vars (mark_var t s) rest
+    in
+        mark_vars t m_vars
+    end
+
+fun unmark t =
+    let
+
+fun find (MTVar(x)) = [x]
+| find (Arrow(x, y)) = (find x) @ (find y)
+| find _ = []
+
+        val mvars = find t
+
+        fun unmark_var (MTVar(x)) s new_var =
+                if x = s then new_var else MTVar(x)
+        | unmark_var (Arrow(x, y)) s n = Arrow(unmark_var x s n, unmark_var y s n)
+        | unmark_var t _ _ = t
+        
+        fun unmark_vars (t:mtype) nil = t
+        | unmark_vars t (s::rest) =
+            let
+                val new_var = TVar(newtype())
+            in
+                unmark_vars (unmark_var t s new_var) rest
+            end
+    in
+        unmark_vars t mvars
+    end
+
+(* MARK AND UNMARK TESTING 
+;
+print "#### TEST #### ";
+val it1 = mark [] (Arrow((TVar "b"), (TVar "a")));
+val it2 = mark [] (Arrow((TVar "a"), (TVar "a")));
+val it3 = mark [("poop", (Arrow(TInt, (TVar "a"))))] (Arrow((TVar "a"), TVar("b")));
+
+unmark it1;
+unmark it2;
+unmark it3;
+*)
+
+(* lookup *)
 exception NotInEnv
 fun lookup (nil:env) _ =
     raise NotInEnv
 | lookup ((s, t)::rest) x =
     if x = s then
-        t
+        unmark t
     else
         lookup rest x
+(*
+;
+print "#### LOOKUP TEST #### ";
+val it1 = mark [] (Arrow((TVar "b"), (TVar "a")));
+val it2 = mark [] (Arrow((TVar "a"), (TVar "a")));
+val it3 = mark [("blah", (Arrow(TInt, (TVar "a"))))] (Arrow((TVar "a"), TVar("b")));
 
-exception NotImplemented
+lookup [("foo", it1)] "foo";
+lookup [("foo", it2)] "foo";
+lookup [("foo", it2)] "foo";
+lookup [("foo", it3)] "foo";
+print "#### #### #### ";
+*)
 
 (* W:  Accepts the arguments A (environment) and E (expression).
     Returns the type of E in A.  *)
@@ -163,9 +270,11 @@ fun W (A:env) (Var(x)) = (* Variables *)
     end
 | W A (Let(x, y, z)) =
     let
-        val alpha = TVar(newtype())
+        val (s1, t1) = W A y
+        val marked_t1 = mark (env_sub A s1) t1
+        val (s2, t2) = W ((x, marked_t1)::A) z
     in
-        ([], alpha)
+        (s1@s2, t2)
     end
 | W A (Fix(x, y)) =
     let
@@ -179,21 +288,35 @@ fun W (A:env) (Var(x)) = (* Variables *)
     ([], TInt)
 | W A (Bool(_)) =
     ([], TBool)
-| W A E =
-    raise NotImplemented  
-
+| W A (Prim(x)) = 
+    W A (Var(prim_to_str Prim(x)))
 ;
-print "#### TEST\n";
-
+print "#### TEST #### ";
+W emptyenv (Bool(true));
+W initenv (Prim(Add));
+W initenv (Prim(Neg));
+W initenv (Prim(Mult));
+W initenv (Prim(Div));
+W initenv (Prim(And));
+W initenv (Prim(Or));
+W initenv (Prim(Not));
+W initenv (Prim(Eq));
+W initenv (Prim(Lt));
+W initenv (Prim(Gt));
 W initenv (Var("a")) handle NotInEnv => (print "OHNO: "; ([], TInt));
 W [("a", TInt)] (Var("a"));
 W initenv (Abs("a", Var("a")));
-W initenv (App(Int(1), Int(1))) handle CannotUnify => (print "OHNO: "; ([], TInt));
+W initenv (App(Int(1), Int(1)))
+    handle CannotUnify => (print "OHNO: "; ([], TInt));
 W initenv (App(Abs("a", Var("a")), Int(1)));
+W initenv (If(Bool(true), Int(1), Int(2)));
+W initenv (If(Int(0), Int(1), Int(2)))
+    handle CannotUnify => (print "OHNO: "; ([], TInt));
+W initenv (Fix("foo", Int(1)));
 W initenv
-    (If(
-        Bool(true),
-        Int(1),
-        Int(2)
+    (Let("foo", (Abs("a", Var("a"))),
+        If(App(Var("foo"), Bool(true)),
+            App(Var("foo"), Int(0)),
+            Int(1))
     ));
 
