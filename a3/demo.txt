@@ -1,0 +1,25 @@
+- W initenv (Var "a");
+
+uncaught exception NotInEnv
+  raised at: a3.sml:195.11-195.19
+
+- W initenv (App(Int 1, Int 2));
+
+uncaught exception CannotUnify
+  raised at: a3.sml:123.30-123.41
+
+- W initenv (If(Int(0), Int(1), Int(2)));
+
+uncaught exception CannotUnify
+  raised at: a3.sml:125.35-125.46
+
+- W initenv
+    (Let("foo", (Abs("a", Var("a"))),
+        If(App(Var("foo"), Bool(true)),
+            App(Var("foo"), Int(0)),
+            Int(1))
+        ));
+val it =
+    ([(TBool,TVar "Z3"),(TBool,TVar "Z2"),(TInt,TVar "Z6"),(TInt,TVar "Z5")],
+    TInt) : (mtype * mtype) list * mtype
+
