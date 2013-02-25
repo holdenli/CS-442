@@ -1,8 +1,9 @@
-(*  Starting point for CS 442/642 W13 Assignment 3
+(*
 
-   These datatype declarations form an abstract syntax for Milner
-   expressions.  All inputs to the type-inferencer are assumed to be
-   syntactically valid Milner programs.  *)
+CS 442 Assignment 3
+Holden Li - h55li - 20300403
+
+*)
 
 datatype prim = Add | Neg | Mult | Div | And | Or | Not | Eq | Lt | Gt
 
@@ -30,7 +31,9 @@ datatype milner = Var of string
                 | Raise of milner
                 | Handle of milner * milner * milner
 
-datatype mtype = TInt | TBool | TVar of string | MTVar of string
+(* Instead of implementing polytypes, I'll just "mark" them. *)
+datatype mtype = TInt | TBool | TVar of string
+               | MTVar of string
                | TException
                | Arrow of mtype * mtype
 
@@ -49,16 +52,11 @@ fun pptype (Arrow(x, y)) =
     " -> " ^
     pptype y ^
     ")"
-| pptype (MTVar(x)) =
-    "'M." ^ x
-| pptype (TVar(x)) =
-    "'" ^ x
-| pptype TInt =
-    "int"
-| pptype TBool =
-    "bool"
-| pptype TException =
-    "exception"
+| pptype (MTVar(x)) = "'M." ^ x
+| pptype (TVar(x)) = "'" ^ x
+| pptype TInt = "int"
+| pptype TBool = "bool"
+| pptype TException = "exception"
 
 (* Environment: mapping from names to types *)
 type env = (string * mtype) list
@@ -73,8 +71,14 @@ val initenv = [
         ("eq",  Arrow(TInt, Arrow(TInt, TBool))),
         ("lt",  Arrow(TInt, Arrow(TInt, TBool))),
         ("gt",  Arrow(TInt, Arrow(TInt, TBool))),
-        ("raise",  Arrow(TException, TVar("raise"))),
-        ("handle",  Arrow(TException, Arrow(TInt, TBool)))
+        ("raise",  Arrow(TException, MTVar("raise"))),
+        ("handle",  Arrow(
+            TException,
+            Arrow(
+                MTVar("handle"),
+                Arrow(MTVar("handle"), MTVar("handle"))
+                )
+            ))
     ]
 val emptyenv = nil:env
 
@@ -146,8 +150,7 @@ unify TInt TBool handle CannotUnify => (print "CU: "; []);
 
 (* **************************************** *)
 
-exception NotImplemented
-
+(* Mark all variables in the type that are not free in the environment *)
 fun mark (A:env) (t:mtype) =
     let
 
@@ -185,6 +188,7 @@ fun rm_l_from_l nil _ = nil
         mark_vars t m_vars
     end
 
+(* Generate a new variable for each marked variable *)
 fun unmark t =
     let
 
@@ -224,6 +228,7 @@ unmark it3;
 
 (* lookup *)
 exception NotInEnv
+
 fun lookup (nil:env) _ =
     raise NotInEnv
 | lookup ((s, t)::rest) x =
@@ -247,7 +252,6 @@ print "#### #### #### ";
 
 (* W:  Accepts the arguments A (environment) and E (expression).
     Returns the type of E in A.  *)
-
 fun W (A:env) (Var(x)) = (* Variables *)
     ([], (lookup A x))
 | W A (Abs(x, y)) = (* Abstractions *)
@@ -298,6 +302,17 @@ fun W (A:env) (Var(x)) = (* Variables *)
     ([], TBool)
 | W A (Prim(x)) = 
     W A (Var(prim_to_str Prim(x)))
+| W A (Letex(x, y)) =
+    let
+        val (s, t) = W ((x, TException)::A) y
+    in
+        (s, t)
+    end
+| W A (Raise(x)) =
+    W A (App(Var("raise"), x))
+| W A (Handle(x, y, z)) =
+    W A (App(App(App(Var("handle"), x), y), z))
+
 ;
 print "#### TEST #### ";
 W emptyenv (Bool(true));
@@ -326,5 +341,14 @@ W initenv
         If(App(Var("foo"), Bool(true)),
             App(Var("foo"), Int(0)),
             Int(1))
+    ));
+W initenv (Letex("ex",
+    (Var "ex")));
+W initenv (Letex("ex",
+        Raise(Var "ex")
+    )); 
+W initenv
+    (Letex("ex",
+        Handle(Var "ex", Raise(Var "ex"), Int 0)
     ));
 
