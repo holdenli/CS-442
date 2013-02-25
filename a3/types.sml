@@ -26,8 +26,12 @@ datatype milner = Var of string
                 | Int of int
                 | Bool of bool
                 | Prim of prim
+                | Letex of string * milner
+                | Raise of milner
+                | Handle of milner * milner * milner
 
 datatype mtype = TInt | TBool | TVar of string | MTVar of string
+               | TException
                | Arrow of mtype * mtype
 
 (* Generating Type Variables:
@@ -53,6 +57,8 @@ fun pptype (Arrow(x, y)) =
     "int"
 | pptype TBool =
     "bool"
+| pptype TException =
+    "exception"
 
 (* Environment: mapping from names to types *)
 type env = (string * mtype) list
@@ -66,7 +72,9 @@ val initenv = [
         ("not", Arrow(TBool, TBool)),
         ("eq",  Arrow(TInt, Arrow(TInt, TBool))),
         ("lt",  Arrow(TInt, Arrow(TInt, TBool))),
-        ("gt",  Arrow(TInt, Arrow(TInt, TBool)))
+        ("gt",  Arrow(TInt, Arrow(TInt, TBool))),
+        ("raise",  Arrow(TException, TVar("raise"))),
+        ("handle",  Arrow(TException, Arrow(TInt, TBool)))
     ]
 val emptyenv = nil:env
 
