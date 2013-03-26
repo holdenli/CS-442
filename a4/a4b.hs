@@ -119,4 +119,4 @@ b = App (App a (INT 1)) (INT 2)
 c = (App (Abs "x" (Var "x")) (INT 1))
 d = App (Prim IsZero) (INT 0)
 e = (Prim Succ)
-
+f = App (Abs "x" (Abs "y" (Var "x"))) (Abs "z" (Var "z")) 
