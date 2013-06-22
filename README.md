@@ -1,1 +1,1 @@
-# CS 442
+# CS 442 - Principles of Programming Languages
