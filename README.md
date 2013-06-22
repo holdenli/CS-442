@@ -1,1 +1,2 @@
-# CS 442 - Principles of Programming Languages
+### CS 442 - Principles of Programming Languages
+### UWaterloo Winter 2013
